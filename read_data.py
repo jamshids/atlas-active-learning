@@ -2,55 +2,123 @@ import numpy as np
 from os import listdir
 from os.path import isfile, join
 import nibabel as nib
+import copy
 import pdb
 
-def enigma_releases(path, id_loc):
+def enigma_releases(path, labels_flag=False):
     """Loading data released by ENIGMA challenge 
     
-    The data include both raw images and segmentation labels.
+    File names  are specified manually within the function below
     """
     
-    # extracting all the files existing in the specified path
-    onlyfiles = [f for f in listdir(path) 
-                 if isfile(join(path, f))]
-    # the first 4 letters of the file-names are numeric identifiers
-    first_letters = [name[id_loc[0]:id_loc[1]] for name in onlyfiles]
-    offset = onlyfiles[0][:id_loc[0]]
-    # since each identifier has multiple file formats, 
-    # we only take the unique values
-    unique_digits = np.unique(np.array([int(digit) for digit
-                                        in first_letters])).tolist()
-    for i, digits in enumerate(unique_digits):
-        num_digits = len(str(unique_digits[i]))
-        if num_digits<4:
-            unique_digits[i] = (4-num_digits)*'0'+str(unique_digits[i])
-        else:
-            unique_digits[i] = str(unique_digits[i])
-        
+    # reading files from M-Release
+    # ---------------------------
+    file_ids = ['0935', '2261', '2381', '2386', '2489',
+                '2501', '2526', '2617', '2621', '2659', 
+                '2719', '2734', '2821', '2827', '2828',
+                '2839', '2846', '2855', '2869', '2873']
+    file_comp = '_mprage_deface'     
     
-    '''Now, read the files with the extracted names
-    '''
-    data_list = list()
-    labels_list = list()
-    #pdb.set_trace()
-    for image_id in unique_digits:
+    # reading the files one-by-one
+    M_data = list()
+    M_labels = list()
+    M_path = path + 'M_Release/'
+    
+    for ids in file_ids:
         
         # loading raw images
-        fname = image_id + "_mprage_deface.nii"
+        fname = ids + file_comp
         try:
-            img = nib.load(path + offset +  fname)
-            data_list += [img.get_data()]
+            img = nib.load(M_path + fname)
+            M_data += [copy.deepcopy(img.get_data())]
         except:
-            print("Image with ID "+ image_id +" could not be found/read")
+            print("File " + M_path + fname + " could not be found/read")
         
         
-        # loading the labels
-        fname = image_id + "_mprage_deface.nii"
-        try:
-            labels = nib.load(path + offset + fname)
-            labels_list += [labels.get_data()]
-        except:
-            print("Mask with ID " + image_id + " could not be found/read")
+        # loading the labels, if necessary
+        if labels_flag:
+            fname = image_id + "_manual_cerebellum.nii"
+            try:
+                labels = nib.load(M_path + fname)
+                M_labels += [copy.deepcopy(labels.get_data())]
+            except:
+                print("File " + M_path + fname + " could not be found/read")
             
-    return data_list, labels_list
+    # reading files from T-Release
+    # ---------------------------
+    # T-release has two parts: those that are labeled by experts (with one 
+    # segmentation) and those that are labeled by two inexperts (wih two
+    # segmentations).
+    
+    # Expert-segmented images            
+    file_ids = ['at1000', 'at1006', 'at1007', 'at1017', 'at1021',
+                'at1025', 'at1029', 'at1031', 'at1033', 'at1034',
+                'at1040', 'at1044', 'at1048' 'at1049', 'at1084']
+    file_comp = '_mprage_deface'
+    
+    # reading the files one-by-one
+    T_exp_data = list()
+    T_exp_labels = list()
+    T_path = path + 'T_Release/'
+    
+    for ids in file_ids:
+        
+        # loading raw images
+        fname = ids + file_comp
+        try:
+            img = nib.load(path + fname)
+            T_exp_data += [copy.deepcopy(img.get_data())]
+        except:
+            print("File " + path + fname + " could not be found/read")
+        
+        
+        # loading the labels, if necessary
+        if labels_flag:
+            fname = image_id + "_manual_cerebellum.nii"
+            try:
+                labels = nib.load(path + fname)
+                T_exp_labels += [copy.deepcopy(labels.get_data())]
+            except:
+                print("File " + path + fname + " could not be found/read")
+                
+    # Inexpert-segmented images
+    file_ids = ['at1005', 'at1013', 'at1014', 'at1016', 'at1018',
+                'at1023', 'at1024', 'at1027', 'at1028', 'at1032',
+                'at1036', 'at1043', 'at1045', 'at1060', 'at1079']
+    file_comp = '_mprage_deface'
+    
+    # reading the files one-by-one
+    T_inexp_data = list()
+    T_inexp_labels_A = list()
+    T_inexp_labels_B = list()
+    
+    for ids in file_ids:
+        
+        # loading raw images
+        fname = ids + file_comp
+        try:
+            img = nib.load(path + fname)
+            T_inexp_data += [copy.deepcopy(img.get_data())]
+        except:
+            print("File " + path + fname + " could not be found/read")
+        
+        
+        # loading the labels, if necessary
+        if labels_flag:
+            fname_A = image_id + "_inexpert_A_cerebellum.nii"
+            try:
+                labels = nib.load(path + fname)
+                T_inexp_labels_A += [copy.deepcopy(labels.get_data())]
+            except:
+                print("File " + path + fname + " could not be found/read")
+            
+            fname_B = image_id + "_inexpert_B_cerebellum.nii"
+            try:
+                labels = nib.load(path + fname)
+                T_inexp_labels_B += [copy.deepcopy(labels.get_data())]
+            except:
+                print("File " + path + fname + " could not be found/read")
+            
+    return (M_data, T_exp_dat, T_inexp_dat, M_labels, 
+            T_exp_labels, T_inexp_labels_A, T_inexp_labels_B)
 
