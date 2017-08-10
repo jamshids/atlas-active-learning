@@ -56,61 +56,115 @@ def gen_batch_tensors(dat, batch_inds):
     
     return batches
 
-def save_patches(img, s, out_addr):
-    """Writing patches of an image into a text file, such that each 
-    patch is saved as one row of the file (after vectorization)
+def save_patches(img1, img2, s, out_addrs):
+    """Writing patches of two images into text files, such that each 
+    patch is saved as one row of the file (after vectorization), also
+    saving an edge list showing neighbors of each saved patch in the 
+    first image in terms of the row number of the patch-matrix of the
+    second image
     
-    Input variables include the input 3D image, size of each patch
+    Input variables include the input 3D images, size of each patch
     (as a list of 3 elements), and name of the output file
     """
     
-    (xs,ys,zs) = img.shape
-    x_pnum = int(xs / s[0])
-    y_pnum = int(ys / s[1])
-    z_pnum = int(zs / s[2])
+    # supposing that the dimensions are the same
+    (xs,ys,zs) = img1.shape
+    half_pxs = int(s[0] / 2)
+    half_pys = int(s[1] / 2)
+    half_pzs = int(s[2] / 2)
 
     # information threshold
     info_thr = 2.
-
+    
+    # local neighborhood sizes
+    lx, ly, lz = (5, 5, 5)
+    
     # saving the first image
-    with open(out_addr,"w") as f:
-        for i in range(x_pnum):
-            for j in range(y_pnum):
-                for k in range(z_pnum):
+    locs_tensor = np.zeros(img1.shape, dtype=int)*np.nan
+    row_cnt = 0
+    with open(out_addrs[0],"w") as f:
+        for i in range(half_pxs, xs - half_pxs):
+            for j in range(half_pys, ys - half_pys):
+                for k in range(half_pzs, zs - half_pzs):
 
                     # 5x5x5 patches
-                    # preparing the ranges:
-                    # x
-                    if i<x_pnum-1:
-                        x_rng = [i*s[0] , (i+1)*s[0]]
-                    else:
-                        x_rng = [i*s[0] , xs]
-                    # y
-                    if j<y_pnum-1:
-                        y_rng = [j*s[1] , (j+1)*s[1]]
-                    else:
-                        y_rng = [j*s[1] , ys]
-                    # z
-                    if k<z_pnum-1:
-                        z_rng = [k*s[2] , (k+1)*s[2]]
-                    else:
-                        z_rng = [k*s[2] , zs]
+                    patch = img1[i-half_pxs : i+half_pxs,
+                                 j-half_pys : j+half_pys,
+                                 k-half_pzs : k+half_pzs]
 
-                    patch = img[x_rng[0]:x_rng[1],
-                                y_rng[0]:y_rng[1],
-                                z_rng[0]:z_rng[1]]
-
-                    # reshaping the patch to a row vector
-                    patch = np.reshape(patch, np.prod(patch.shape))
-
-                    # how much information the patch has
-                    #info_metric = np.std(patch)
-                    patch_hist, b_edges = np.histogram(patch, bins=20, density=True)
-                    w = b_edges[1] - b_edges[0]
-                    patch_hist *= w
-                    patch_hist[patch_hist==0] += 1e-6
-                    info_metric = -sum(patch_hist*np.log(patch_hist))
-
-                    # save the patch only if it has sufficient info
-                    if info_metric > info_thr:
+                    # save the patch, and its row-number if in the location-tensor
+                    # only if it has sufficient info
+                    if qualify_patch(patch, info_thr):
+                        patch = np.reshape(patch, np.prod(patch.shape))
                         f.write("".join(" ".join(map(str, x)) for x in (patch,))+'\n')
+                        locs_tensor[i,j,k] = row_cnt
+                        row_cnt += 1
+                        
+    # initializing the string containing all the edges:
+    edges = [str(x)+"\n" for x in range(row_cnt)]
+            
+    # udating the row-count to use it for patches of the second image
+    row_cnt = 0
+    # saving the second image, plus the edge list
+    with open(out_addrs[1], "w") as f:
+        for i in range(half_pxs, xs - half_pxs):
+            for j in range(half_pys, ys - half_pys):
+                for k in range(half_pzs, zs - half_pzs):
+                    # 5x5x5 patches
+                    patch = img2[i-half_pxs : i+half_pxs,
+                                 j-half_pys : j+half_pys,
+                                 k-half_pzs : k+half_pzs]
+
+                    # save the patch, and its row-number if in the location-tensor
+                    # only if it has sufficient info
+                    if qualify_patch(patch, info_thr):
+                        patch = np.reshape(patch, np.prod(patch.shape))
+                        f.write("".join(" ".join(map(str, x)) for x in (patch,))+'\n')
+                        row_cnt += 1
+
+                        # consider neighborhood of this patch in the first image
+                        nborders = np.array([[i-lx, j-ly, k-lz],
+                                             [i+lx, j+ly, k+lz]])
+                        # check if the patches in that neighborhood is already saved
+                        # as selected patches from the first image
+                        for ii in range(i-lx, i+lx+1):
+                            if ii<0 or ii>=xs: continue
+                            for jj in range(j-ly, j+ly+1):
+                                if jj<0 or jj>=ys: continue
+                                for kk in range(k-lz, k+lz+1):
+                                    if kk<0 or kk>=zs: continue
+                                    # if it is marked, add the patch in the
+                                    # second image to the list
+                                    if ~np.isnan(locs_tensor[ii,jj,kk]):
+                                        #pdb.set_trace()
+                                        new_edges = edges[int(locs_tensor[ii,jj,kk])][:-1] + \
+                                            " " + str(row_cnt) + "\n"
+                                        edges[int(locs_tensor[ii,jj,kk])] = new_edges
+                                        
+    # now, save the edge list into a separate file
+    with open(out_addrs[2], "w") as f:
+        f.write("".join(edges))
+                                        
+            
+            
+def qualify_patch(patch, thr):
+    """Qualifying a patch to be saved or not
+    
+    This function is useful when saving a lot of patches to compute
+    cross-correlation between two images.
+    """
+    
+    # reshaping the patch to a row vector
+    patch = np.reshape(patch, np.prod(patch.shape))
+
+    # how much information the patch has
+    #info_metric = np.std(patch)
+    patch_hist, b_edges = np.histogram(patch, bins=20, density=True)
+    w = b_edges[1] - b_edges[0]
+    patch_hist *= w
+    patch_hist[patch_hist==0] += 1e-6
+    info_metric = -sum(patch_hist*np.log(patch_hist))
+    
+    check = info_metric > thr
+    
+    return check
