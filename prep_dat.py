@@ -31,9 +31,29 @@ def gen_batch_inds(data_size, batch_size):
         
     return batches
 
+def gen_batch_matrices(dat, batch_inds):
+    """Generating a list of batch matrices  with data loaded into
+    each batch accodting 
+    
+    The data shape is assumed to be (n_samples, n_features)
+    """
+    batches = []
+    
+    # loading the data into batches one-by-one
+    for i in range(len(batch_inds)):
+        # figuring shape of the current data batch
+        batch_size = len(batch_inds[i])
+        batch_dat = np.zeros((batch_size, dat.shape[1]))
+        for j in range(batch_size):
+            batch_dat[j,:] = dat[batch_inds[i][j],:]
+        
+        batches += [batch_dat]
+    
+    return batches
+
 def gen_batch_tensors(dat, batch_inds):
-    """Generating a list of batches with data loaded into each 
-    batch according to the batch_inds.
+    """Generating a list of batch tensors with data loaded into
+    each batch according to the batch_inds.
     
     Data samples are assumed to have dimension (data_size x 
     height x width x 1)
@@ -41,14 +61,12 @@ def gen_batch_tensors(dat, batch_inds):
     
     batches = []
     
-    # getting data shape using just the first sample
-    batch_size = len(batch_inds[0])
-    batch_dat_shape = (batch_size,) + dat.shape[1:]
-    
     # loading the data into batches one-by-one
     for i in range(len(batch_inds)):
+        # figuring shape of the current data batch
+        batch_size = len(batch_inds[i])
+        batch_dat_shape = (batch_size,) + dat.shape[1:]
         batch_dat = np.zeros(batch_dat_shape)
-        #pdb.set_trace()
         for j in range(batch_size):
             batch_dat[j,:,:,:] = dat[batch_inds[i][j],:,:,:]
         
