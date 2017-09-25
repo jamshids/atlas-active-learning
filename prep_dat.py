@@ -1,6 +1,6 @@
 import numpy as np
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, isdir
 import nibabel as nib
 import copy
 import pdb
@@ -291,15 +291,20 @@ class Mindboggle_101():
         imgs = {group:[] for group in self.group_names}
         
         for i in range(len(self.group_names)):
-            dirs = extract_dirs(self.base_dir)
+            dirs = extract_dirs('%s/%s'% 
+                                (self.base_dir, self.group_names[i]))
             group_size = len(dirs)
             group_imgs = np.zeros(
                 (group_size,)+self.img_shape)
             for j in range(len(dirs)):
+                if 'Colin' in dirs[j]:
+                    continue
+                
                 # read brain images
-                fpath = '%s/%s/%s'% (
+                fpath = '%s/%s/%s/%s'% (
                     self.base_dir,
-                    self.group_names[j],
+                    self.group_names[i],
+                    dirs[j],
                     self.data_fname)
                 
                 img = nib.load(fpath)
@@ -309,7 +314,7 @@ class Mindboggle_101():
             
         return imgs
                 
-    def read_labels(self, label_type, imgs):
+    def read_labels(self, imgs, label_type):
         """Loading labels of the images into the data
         dictionary
         
@@ -322,15 +327,18 @@ class Mindboggle_101():
         # if DKT-25 labels are to be loaded
         if '25' in label_type:
             for i in range(len(self.group_names)):
-                dirs = extract_dirs(self.base_dir)
+                dirs = extract_dirs(
+                    '%s/%s'% 
+                    (self.base_dir, self.group_names[i]))
                 group_size = len(dirs)
                 group_masks = np.zeros(
                     (group_size,)+self.img_shape)
                 for j in range(len(dirs)):
                     # read brain images
-                    fpath = '%s/%s/%s'% (
+                    fpath = '%s/%s/%s/%s'% (
                         self.base_dir,
-                        self.group_names[j],
+                        self.group_names[i],
+                        dirs[j],
                         self.DKT25_fname)
                     
                     mask = nib.load(fpath)
@@ -342,15 +350,18 @@ class Mindboggle_101():
         # if DKT-31 labels are to be loaded
         if '31' in label_type:
             for i in range(len(self.group_names)):
-                dirs = extract_dirs(self.base_dir)
+                dirs = extract_dirs(
+                    '%s/%s'% 
+                    (self.base_dir, self.group_names[i]))
                 group_size = len(dirs)
                 group_masks = np.zeros(
                     (group_size,)+self.img_shape)
                 for j in range(len(dirs)):
                     # read brain images
-                    fpath = '%s/%s/%s'% (
+                    fpath = '%s/%s/%s/%s'% (
                         self.base_dir,
-                        self.group_names[j],
+                        self.group_names[i],
+                        dirs[j],
                         self.DKT31_fname)
                     
                     mask = nib.load(fpath)
@@ -366,8 +377,8 @@ def extract_dirs(addr):
     """
     
     dirs = [
-        os.path.join(addr,o) for o in os.listdir(addr) 
-        if os.path.isdir(os.path.join(addr,o))]
+        join(addr,o) for o in listdir(addr) 
+        if isdir(join(addr,o))]
     # only keep name of the directories
     dirs = [a[len(addr):] for a in dirs]
     
