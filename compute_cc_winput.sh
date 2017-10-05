@@ -3,10 +3,11 @@ RESULTDIR="/common/external/rawabd/Mindboggle-101/CC/Results"
 
 # listing all the image files in an array
 fnames=(/common/external/rawabd/Mindboggle-101/NRRD/*)
-printf "%s\n" "${fnames[@]}" > results/image_list.txt
+#printf "%s\n" "${fnames[@]}" > results/image_list.txt
 
+starting_idx=$1
 
-for i in ${!fnames[@]}
+for ((i=$starting_idx; i<${#fnames[@]}; i++))
 do 
     # writing the file if necessary
     if [ ! -e "results/$i.txt" ] ; then
