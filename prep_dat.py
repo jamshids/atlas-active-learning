@@ -1,7 +1,7 @@
 import numpy as np
 from os import listdir
 from os.path import isfile, join, isdir
-import nibabel as nib
+#import nibabel as nib
 import copy
 import pdb
 
@@ -369,7 +369,20 @@ class Mindboggle_101():
                     
                 imgs[self.group_names[i]] += [group_masks]
         return imgs
-                
+
+    def list_data_path(self, img_path, mask_path):
+        """This function is useful when all the images are saved
+        in a specific path, and we need to store their names
+        in a list so that we can index them properly
+        """
+        
+        # assuming that there are only image files in there
+        img_names = listdir(img_path)
+        mask_names = listdir(mask_path)
+        
+        
+        self.imgs_path = ["%s/%s"% (img_path,img) for img in img_names]
+        self.masks_path = ["%s/%s"% (mask_path,mask) for mask in mask_names]
 
 def extract_dirs(addr):
     """Function for extracting all existing directories
@@ -433,6 +446,8 @@ def gen_batch_matrices(dat, batch_inds, col=True):
         batches += [batch_dat]
     
     return batches
+
+
 
 def gen_batch_tensors(dat, batch_inds):
     """Generating a list of batch tensors with data loaded into
