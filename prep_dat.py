@@ -370,7 +370,7 @@ class Mindboggle_101():
                 imgs[self.group_names[i]] += [group_masks]
         return imgs
 
-    def list_data_path(self, img_path, mask_path):
+    def list_data_path(self, img_path, seg_path):
         """This function is useful when all the images are saved
         in a specific path, and we need to store their names
         in a list so that we can index them properly
@@ -378,11 +378,11 @@ class Mindboggle_101():
         
         # assuming that there are only image files in there
         img_names = listdir(img_path)
-        mask_names = listdir(mask_path)
+        seg_names = listdir(seg_path)
         
         
         self.imgs_path = ["%s/%s"% (img_path,img) for img in img_names]
-        self.masks_path = ["%s/%s"% (mask_path,mask) for mask in mask_names]
+        self.segs_path = ["%s/%s"% (seg_path,seg) for seg in seg_names]
 
 def extract_dirs(addr):
     """Function for extracting all existing directories

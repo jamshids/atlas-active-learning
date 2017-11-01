@@ -1,20 +1,30 @@
 import numpy as np
 import nrrd
+import os
 
 def pairwise_masked_CC(cc_path, index_path, mask):
     """Extracging CC values of a pair of images only at a 
     maksed region.
     """
     
-    CC = np.loadtxt(cc_path)
-    CC = CC[:-1]
-    index_file = open(index_path, "rb")
-    XYZ = index_file.readlines()
-
+    cc_map = np.zeros(mask.shape)
+    try:
+        CC = np.loadtxt(cc_path)
+        CC = CC[:-1]
+        index_file = open(index_path, "rb")
+        XYZ = index_file.readlines()
+    except:
+        flag = False
+        return cc_map, flag
+    
+    if not(len(CC)==len(XYZ)):
+        flag = False
+        return cc_map, flag
+    
+    flag = True
     # preparing the CC-map
     valid_CCs = np.where(CC>0)[0]
-    #coords = np.zeros((len(valid_CCs), 3))
-    cc_map = np.zeros(mask.shape)
+    #coords = np.zeros((len(valid_CCs), 3))    
 
     for i in range(len(valid_CCs)):        
         # get the 3D coordinate
@@ -28,9 +38,9 @@ def pairwise_masked_CC(cc_path, index_path, mask):
         # copying the CC to the right location
         cc_map[coords[0],coords[1],coords[2]] = CC[row_idx]
         
-    return cc_map
+    return cc_map, flag
 
-def local_CC_similarity(data_obj, cc_dir,indices_dir,LOI, start_ID):
+def local_CC_similarity(data_obj, cc_dir,indices_dir,LOI):
     """Computing a similarity matrix based on local cross-correlations
     
     *Parameters:*
@@ -59,9 +69,10 @@ def local_CC_similarity(data_obj, cc_dir,indices_dir,LOI, start_ID):
     
     n_samples = 100
 
-    #S = np.zeros((n_samples,n_samples))
-    S = np.loadtxt('Heschle_gyrus_sim.txt')
-    for i in range(start_ID, n_samples):
+    #S = np.zeros((n_samples, n_samples))
+    S = np.loadtxt('Heschle_gyrus_sim_2.txt')
+    BAD_PAIRS = []
+    for i in range(n_samples):
         S[i,i] = 1.
         if i==n_samples-1:
             break
@@ -74,17 +85,31 @@ def local_CC_similarity(data_obj, cc_dir,indices_dir,LOI, start_ID):
         mask = np.zeros(seg.shape, dtype=bool)
         for label in LOI:
             mask = np.logical_or(mask, seg==label)
-        
-        # reading the CC map between the i-th image and others
+
         for j in range(i+1, n_samples):
+            # if already computed, skip it
+            if S[i,j]>0:
+                continue
+            
             cc_path = '%s/cc_%d-%d.txt'% (cc_dir, i, j)
             index_path = '%s/index_%d-%d.txt'% (indices_dir,  i, j)
             
-            cc_map = pairwise_masked_CC(cc_path, index_path, mask)
+            cc_map, flag = pairwise_masked_CC(cc_path, index_path, mask)
+            if not(flag):
+                BAD_PAIRS += [(i,j)]
+                np.savetxt('bad_pairs.txt', BAD_PAIRS)
+                # remove the corrupted files
+                os.remove(cc_path)
+                os.remove(index_path)
+                with open('manlog.txt','a') as f:
+                    f.write("(%d,%d):\t failed..\n "% (i,j))
+                continue
+            
             S[i,j] = np.mean(cc_map[cc_map>0])
             S[j,i] = S[i,j]
             
-            print("(%d, %d)"% (i,j), end=', ')
+            with open('manlog.txt','a') as f:
+                f.write("(%d,%d):\t successful..\n"% (i,j))
             np.savetxt('Heschle_gyrus_sim_2.txt', S)
     return S
             
