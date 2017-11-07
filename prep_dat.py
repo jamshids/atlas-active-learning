@@ -1,7 +1,7 @@
 import numpy as np
 from os import listdir
 from os.path import isfile, join, isdir
-#import nibabel as nib
+import nibabel as nib
 import copy
 import pdb
 
@@ -287,21 +287,26 @@ class Mindboggle_101():
         """Reading brain images
         """
         
-        #imgs = np.zeros((self.img_num,)+self.img_shape)
-        imgs = {group:[] for group in self.group_names}
+        imgs = {group:[] for group in 
+                self.group_names}
+        imgs_path = {group:[] for group 
+                     in self.group_names}
         
         for i in range(len(self.group_names)):
-            dirs = extract_dirs('%s/%s'% 
-                                (self.base_dir, self.group_names[i]))
+            dirs = extract_dirs(
+                '%s/%s'% (self.base_dir, 
+                          self.group_names[i]))
             group_size = len(dirs)
             group_imgs = np.zeros(
                 (group_size,)+self.img_shape)
             for j in range(len(dirs)):
+                imgs_path[
+                    self.group_names[i]] += [dirs[j]]
                 if 'Colin' in dirs[j]:
                     continue
                 
                 # read brain images
-                fpath = '%s/%s/%s/%s'% (
+                fpath = '%s/%s%s/%s'% (
                     self.base_dir,
                     self.group_names[i],
                     dirs[j],
@@ -312,7 +317,7 @@ class Mindboggle_101():
                 
             imgs[self.group_names[i]] = [group_imgs]
             
-        return imgs
+        return imgs, imgs_path
                 
     def read_labels(self, imgs, label_type):
         """Loading labels of the images into the data
@@ -334,6 +339,8 @@ class Mindboggle_101():
                 group_masks = np.zeros(
                     (group_size,)+self.img_shape)
                 for j in range(len(dirs)):
+                    if 'Colin' in dirs[j]:
+                        continue
                     # read brain images
                     fpath = '%s/%s/%s/%s'% (
                         self.base_dir,
@@ -357,6 +364,8 @@ class Mindboggle_101():
                 group_masks = np.zeros(
                     (group_size,)+self.img_shape)
                 for j in range(len(dirs)):
+                    if 'Colin' in dirs[j]:
+                        continue
                     # read brain images
                     fpath = '%s/%s/%s/%s'% (
                         self.base_dir,
